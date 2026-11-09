@@ -28,6 +28,7 @@ except ModuleNotFoundError:
     joblib = None
 
 import fallbacks
+from semantic_router import SemanticRouter
 
 
 SCREEN_WIDTH = 1000
@@ -87,44 +88,28 @@ def load_layer(filename, fallback_size, fallback_draw):
 # ==============================================================================
 
 class TextAvatarModel:
-    """Преобразует русскую текстовую фразу в нормализованные параметры мимики."""
+    """Гибридная модель: семантический векторный поиск + пресеты мимики + разбор отрицаний + кэш."""
 
-    def __init__(self, model_path):
-        self.pipeline = None
+    def __init__(self, model_path=None):
+        self.router = SemanticRouter()
+        self.last_description = ""
         self.error = ""
+        self.legacy_pipeline = None
 
-        if joblib is None:
-            self.error = "Не установлен пакет joblib / scikit-learn"
-            return
-
-        if not model_path.exists():
-            self.error = f"Файл модели не найден: {model_path}"
-            return
-
-        try:
-            self.pipeline = joblib.load(str(model_path))
-        except Exception as error:
-            self.error = f"Ошибка загрузки модели: {error}"
+        if model_path and model_path.exists() and joblib is not None:
+            try:
+                self.legacy_pipeline = joblib.load(str(model_path))
+            except Exception as e:
+                self.error = str(e)
 
     @property
     def is_ready(self):
-        return self.pipeline is not None
+        return True
 
     def predict(self, text):
-        if not self.is_ready:
-            raise RuntimeError(self.error or "Модель не готова")
-
-        raw_prediction = self.pipeline.predict([text])[0]
-        result = {}
-
-        for name, raw_value in zip(MODEL_OUTPUT_NAMES, raw_prediction):
-            value = float(raw_value)
-            if name in ZERO_TO_ONE_OUTPUTS:
-                result[name] = clamp(value, 0.0, 1.0)
-            else:
-                result[name] = clamp(value, -1.0, 1.0)
-
-        return result
+        params, desc, score = self.router.route(text)
+        self.last_description = desc
+        return params
 
 
 # ==============================================================================
@@ -727,9 +712,9 @@ def main():
                                 last_output = model.predict(phrase)
                                 for a in avatars:
                                     a.apply_model_output(last_output)
-                                status = f"Вход: «{phrase}»"
+                                status = f"Вход: «{phrase}»  [{model.last_description}]"
                             except Exception as error:
-                                status = f"Ошибка предсказания: {error}"
+                                status = f"Ошибка: {error}"
 
         active_avatar = avatars[current_avatar_idx]
         active_avatar.update(delta_time)
