@@ -332,11 +332,8 @@ class SemanticRouter:
         available_keys = [k for k in expressions.PRESETS.keys() if k != "neutral"]
 
         prompt = (
-            f"Ты — аниматор лица персонажа Nori. Твоя задача: проанализировать реплику пользователя '{text}' "
-            f"и сопоставить ей 1-2 эмоции или направления взгляда из доступного списка: {available_keys}. "
-            "Учитывай скрытый смысл, иронию, контекст, отрицания ('не злись' -> нейтраль/улыбка) и сложные действия. "
-            "Для каждой выбранной эмоции укажи интенсивность от 0.1 до 1.0. "
-            "Ответь ИСКЛЮЧИТЕЛЬНО валидным JSON-массивом пар вида [[\"название\", 0.8]]. Без пояснений и без markdown."
+            f"Проанализируй фразу: '{text}'. Выбери 1-2 подходящие реакции персонажа из списка: {available_keys} с силой от 0.1 до 1.0. "
+            "Ответь строго JSON-объектом вида: {\"название_реакции\": число}. Пример: {\"smug\": 0.8, \"look_left\": 0.5}."
         )
 
         data = json.dumps({
@@ -345,8 +342,8 @@ class SemanticRouter:
             "stream": False,
             "format": "json",
             "options": {
-                "temperature": 0.2,
-                "num_predict": 60,
+                "temperature": 0.1,
+                "num_predict": 45,
             }
         }).encode("utf-8")
 
@@ -357,28 +354,26 @@ class SemanticRouter:
         )
 
         try:
-            with urllib.request.urlopen(req, timeout=2.5) as resp:
+            with urllib.request.urlopen(req, timeout=3.5) as resp:
                 res = json.loads(resp.read().decode("utf-8"))
-                raw_response = res.get("response", "[]").strip()
+                raw_response = res.get("response", "{}").strip()
 
-                # Очистка возможных markdown-тегов ```json ... ```
                 if "```" in raw_response:
                     raw_response = re.sub(r"```(?:json)?", "", raw_response).strip()
 
                 parsed = json.loads(raw_response)
-
                 valid = []
-                if isinstance(parsed, list):
+
+                if isinstance(parsed, dict):
+                    for name, weight in parsed.items():
+                        if name in expressions.PRESETS and isinstance(weight, (int, float)):
+                            valid.append((str(name), float(weight)))
+                elif isinstance(parsed, list):
                     for item in parsed:
                         if isinstance(item, (list, tuple)) and len(item) == 2:
                             name, weight = item
                             if name in expressions.PRESETS:
                                 valid.append((str(name), float(weight)))
-                elif isinstance(parsed, dict):
-                    # Если модель вернула объект вида {"smile": 0.8}
-                    for name, weight in parsed.items():
-                        if name in expressions.PRESETS and isinstance(weight, (int, float)):
-                            valid.append((str(name), float(weight)))
 
                 if valid:
                     return valid
