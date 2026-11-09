@@ -1,0 +1,113 @@
+{
+    "output_parameters": [
+        "left_brow_y",
+        "right_brow_y",
+        "left_eye_x",
+        "left_eye_y",
+        "right_eye_x",
+        "right_eye_y",
+        "left_eye_open",
+        "right_eye_open",
+        "mouth_x",
+        "mouth_open",
+        "face_angle"
+    ],
+    "parameter_ranges": {
+        "left_brow_y": [
+            -1.0,
+            1.0
+        ],
+        "right_brow_y": [
+            -1.0,
+            1.0
+        ],
+        "left_eye_x": [
+            -1.0,
+            1.0
+        ],
+        "left_eye_y": [
+            -1.0,
+            1.0
+        ],
+        "right_eye_x": [
+            -1.0,
+            1.0
+        ],
+        "right_eye_y": [
+            -1.0,
+            1.0
+        ],
+        "left_eye_open": [
+            0.0,
+            1.0
+        ],
+        "right_eye_open": [
+            0.0,
+            1.0
+        ],
+        "mouth_x": [
+            -1.0,
+            1.0
+        ],
+        "mouth_open": [
+            0.0,
+            1.0
+        ],
+        "face_angle": [
+            -1.0,
+            1.0
+        ]
+    },
+    "selected_alpha": 1.0,
+    "test_metrics": {
+        "overall_mae": 0.11536387507799793,
+        "overall_rmse": 0.21873012871981193,
+        "individual_metrics": {
+            "left_brow_y": {
+                "MAE": 0.18484347324298234,
+                "R2": 0.16831775426761741
+            },
+            "right_brow_y": {
+                "MAE": 0.18484347324298234,
+                "R2": 0.16831775426761741
+            },
+            "left_eye_x": {
+                "MAE": 0.134644645702914,
+                "R2": 0.4843220833845794
+            },
+            "left_eye_y": {
+                "MAE": 0.11664075836284254,
+                "R2": 0.6456470230506293
+            },
+            "right_eye_x": {
+                "MAE": 0.134644645702914,
+                "R2": 0.4843220833845794
+            },
+            "right_eye_y": {
+                "MAE": 0.11664075836284254,
+                "R2": 0.6456470230506293
+            },
+            "left_eye_open": {
+                "MAE": 0.0847358260403215,
+                "R2": 0.5686099021803926
+            },
+            "right_eye_open": {
+                "MAE": 0.0847358260403215,
+                "R2": 0.5686099021803926
+            },
+            "mouth_x": {
+                "MAE": 0.020911027600359972,
+                "R2": 0.2841720822433895
+            },
+            "mouth_open": {
+                "MAE": 0.08540518867173472,
+                "R2": 0.5734566071371388
+            },
+            "face_angle": {
+                "MAE": 0.12095700288776169,
+                "R2": 0.5250614321182673
+            }
+        }
+    },
+    "num_train_samples": 572
+}

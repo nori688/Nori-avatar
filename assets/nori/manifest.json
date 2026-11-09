@@ -1,0 +1,457 @@
+{
+  "canvas_size": [
+    2500,
+    4000
+  ],
+  "head_center": [
+    1250,
+    650
+  ],
+  "body_center": [
+    1250,
+    1600
+  ],
+  "layers": {
+    "back_hair": {
+      "file": "back_hair.png",
+      "width": 761,
+      "height": 1052,
+      "bbox": [
+        892,
+        153,
+        1653,
+        1205
+      ],
+      "center": [
+        1272.5,
+        679.0
+      ],
+      "rel_center": [
+        22.5,
+        29.0
+      ]
+    },
+    "body": {
+      "file": "body.png",
+      "width": 1982,
+      "height": 1537,
+      "bbox": [
+        259,
+        974,
+        2241,
+        2511
+      ],
+      "center": [
+        1250.0,
+        1742.5
+      ],
+      "rel_center": [
+        0.0,
+        1092.5
+      ]
+    },
+    "face_base": {
+      "file": "face_base.png",
+      "width": 568,
+      "height": 644,
+      "bbox": [
+        966,
+        252,
+        1534,
+        896
+      ],
+      "center": [
+        1250.0,
+        574.0
+      ],
+      "rel_center": [
+        0.0,
+        -76.0
+      ]
+    },
+    "neck": {
+      "file": "neck.png",
+      "width": 558,
+      "height": 370,
+      "bbox": [
+        971,
+        766,
+        1529,
+        1136
+      ],
+      "center": [
+        1250.0,
+        951.0
+      ],
+      "rel_center": [
+        0.0,
+        301.0
+      ]
+    },
+    "left_brow": {
+      "file": "left_brow.png",
+      "width": 104,
+      "height": 20,
+      "bbox": [
+        1047,
+        539,
+        1151,
+        559
+      ],
+      "center": [
+        1099.0,
+        549.0
+      ],
+      "rel_center": [
+        -151.0,
+        -101.0
+      ]
+    },
+    "right_brow": {
+      "file": "right_brow.png",
+      "width": 104,
+      "height": 20,
+      "bbox": [
+        1349,
+        539,
+        1453,
+        559
+      ],
+      "center": [
+        1401.0,
+        549.0
+      ],
+      "rel_center": [
+        151.0,
+        -101.0
+      ]
+    },
+    "left_eye_white": {
+      "file": "left_eye_white.png",
+      "width": 171,
+      "height": 109,
+      "bbox": [
+        1021,
+        643,
+        1192,
+        752
+      ],
+      "center": [
+        1106.5,
+        697.5
+      ],
+      "rel_center": [
+        -143.5,
+        47.5
+      ]
+    },
+    "right_eye_white": {
+      "file": "right_eye_white.png",
+      "width": 171,
+      "height": 109,
+      "bbox": [
+        1308,
+        643,
+        1479,
+        752
+      ],
+      "center": [
+        1393.5,
+        697.5
+      ],
+      "rel_center": [
+        143.5,
+        47.5
+      ]
+    },
+    "left_eye_iris": {
+      "file": "left_eye_iris.png",
+      "width": 95,
+      "height": 124,
+      "bbox": [
+        1077,
+        605,
+        1172,
+        729
+      ],
+      "center": [
+        1124.5,
+        667.0
+      ],
+      "rel_center": [
+        -125.5,
+        17.0
+      ]
+    },
+    "right_eye_iris": {
+      "file": "right_eye_iris.png",
+      "width": 95,
+      "height": 124,
+      "bbox": [
+        1328,
+        605,
+        1423,
+        729
+      ],
+      "center": [
+        1375.5,
+        667.0
+      ],
+      "rel_center": [
+        125.5,
+        17.0
+      ]
+    },
+    "left_eyelid_upper": {
+      "file": "left_eyelid_upper.png",
+      "width": 263,
+      "height": 204,
+      "bbox": [
+        961,
+        475,
+        1224,
+        679
+      ],
+      "center": [
+        1092.5,
+        577.0
+      ],
+      "rel_center": [
+        -157.5,
+        -73.0
+      ]
+    },
+    "right_eyelid_upper": {
+      "file": "right_eyelid_upper.png",
+      "width": 263,
+      "height": 204,
+      "bbox": [
+        1276,
+        475,
+        1539,
+        679
+      ],
+      "center": [
+        1407.5,
+        577.0
+      ],
+      "rel_center": [
+        157.5,
+        -73.0
+      ]
+    },
+    "left_eyelid_lower": {
+      "file": "left_eyelid_lower.png",
+      "width": 135,
+      "height": 112,
+      "bbox": [
+        978,
+        654,
+        1113,
+        766
+      ],
+      "center": [
+        1045.5,
+        710.0
+      ],
+      "rel_center": [
+        -204.5,
+        60.0
+      ]
+    },
+    "right_eyelid_lower": {
+      "file": "right_eyelid_lower.png",
+      "width": 135,
+      "height": 112,
+      "bbox": [
+        1387,
+        654,
+        1522,
+        766
+      ],
+      "center": [
+        1454.5,
+        710.0
+      ],
+      "rel_center": [
+        204.5,
+        60.0
+      ]
+    },
+    "nose": {
+      "file": "nose.png",
+      "width": 54,
+      "height": 55,
+      "bbox": [
+        1223,
+        700,
+        1277,
+        755
+      ],
+      "center": [
+        1250.0,
+        727.5
+      ],
+      "rel_center": [
+        0.0,
+        77.5
+      ]
+    },
+    "mouth": {
+      "file": "mouth.png",
+      "width": 172,
+      "height": 147,
+      "bbox": [
+        1164,
+        727,
+        1336,
+        874
+      ],
+      "center": [
+        1250.0,
+        800.5
+      ],
+      "rel_center": [
+        0.0,
+        150.5
+      ]
+    },
+    "mouth_inside": {
+      "file": "mouth_inside.png",
+      "width": 78,
+      "height": 66,
+      "bbox": [
+        1211,
+        790,
+        1289,
+        856
+      ],
+      "center": [
+        1250.0,
+        823.0
+      ],
+      "rel_center": [
+        0.0,
+        173.0
+      ]
+    },
+    "mouth_upper": {
+      "file": "mouth_upper.png",
+      "width": 172,
+      "height": 80,
+      "bbox": [
+        1164,
+        727,
+        1336,
+        807
+      ],
+      "center": [
+        1250.0,
+        767.0
+      ],
+      "rel_center": [
+        0.0,
+        117.0
+      ]
+    },
+    "mouth_lower": {
+      "file": "mouth_lower.png",
+      "width": 110,
+      "height": 87,
+      "bbox": [
+        1195,
+        787,
+        1305,
+        874
+      ],
+      "center": [
+        1250.0,
+        830.5
+      ],
+      "rel_center": [
+        0.0,
+        180.5
+      ]
+    },
+    "front_hair": {
+      "file": "front_hair.png",
+      "width": 661,
+      "height": 1042,
+      "bbox": [
+        939,
+        179,
+        1600,
+        1221
+      ],
+      "center": [
+        1269.5,
+        700.0
+      ],
+      "rel_center": [
+        19.5,
+        50.0
+      ]
+    },
+    "front_hair_left": {
+      "file": "front_hair_left.png",
+      "width": 505,
+      "height": 939,
+      "bbox": [
+        939,
+        179,
+        1444,
+        1118
+      ],
+      "center": [
+        1191.5,
+        648.5
+      ],
+      "rel_center": [
+        -58.5,
+        -1.5
+      ]
+    },
+    "front_hair_right": {
+      "file": "front_hair_right.png",
+      "width": 334,
+      "height": 1032,
+      "bbox": [
+        1266,
+        189,
+        1600,
+        1221
+      ],
+      "center": [
+        1433.0,
+        705.0
+      ],
+      "rel_center": [
+        183.0,
+        55.0
+      ]
+    },
+    "front_hair_mid": {
+      "file": "front_hair_mid.png",
+      "width": 344,
+      "height": 848,
+      "bbox": [
+        1048,
+        187,
+        1392,
+        1035
+      ],
+      "center": [
+        1220.0,
+        611.0
+      ],
+      "rel_center": [
+        -30.0,
+        -39.0
+      ]
+    }
+  },
+  "head_origin": [
+    1250,
+    650
+  ]
+}
