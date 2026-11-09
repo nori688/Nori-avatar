@@ -277,7 +277,7 @@ class SemanticRouter:
         avg_score = float(np.mean(scores)) if scores else 0.0
 
         # Если уверенность низкая, пробуем опросить локальную LLM (Ollama), если она запущена
-        if avg_score < 0.40:
+        if avg_score < 0.45:
             llm_presets = self._try_llm_query(norm_text)
             if llm_presets:
                 combined_presets = llm_presets
@@ -285,7 +285,8 @@ class SemanticRouter:
                 self.cache[norm_text] = combined_presets
                 self._save_cache()
                 blended_params = expressions.blend_presets(combined_presets)
-                return blended_params, f"LLM (Qwen): {combined_presets}", 0.99
+                model_name = getattr(self, "_active_model", "Qwen")
+                return blended_params, f"LLM ({model_name}): {combined_presets}", 0.99
 
         # Если уверенность достаточна, сохраняем в кэш
         if avg_score >= 0.40:
@@ -297,21 +298,56 @@ class SemanticRouter:
 
         return blended_params, description, avg_score
 
+    def _detect_ollama_model(self) -> str:
+        """Определяет лучшую доступную модель Qwen в Ollama."""
+        if hasattr(self, "_active_model") and self._active_model:
+            return self._active_model
+
+        try:
+            import urllib.request
+            req = urllib.request.Request("http://127.0.0.1:11434/api/tags")
+            with urllib.request.urlopen(req, timeout=0.6) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+                models = [m.get("name", "") for m in data.get("models", [])]
+                for priority in ("qwen2.5:7b", "qwen2.5:3b", "qwen2.5:1.5b", "qwen2.5:0.5b", "qwen2.5", "llama3"):
+                    for m in models:
+                        if priority in m:
+                            self._active_model = m
+                            return m
+                if models:
+                    self._active_model = models[0]
+                    return models[0]
+        except Exception:
+            pass
+
+        self._active_model = "qwen2.5:3b"
+        return self._active_model
+
     def _try_llm_query(self, text: str) -> Optional[List[Tuple[str, float]]]:
-        """Опрашивает локальную LLM (Ollama), если она доступна на порту 11434."""
+        """Опрашивает локальную LLM (Ollama) с динамическим определением модели."""
         import urllib.request
         import urllib.error
 
+        model_name = self._detect_ollama_model()
         available_keys = [k for k in expressions.PRESETS.keys() if k != "neutral"]
+
         prompt = (
-            f"Для фразы: '{text}' выбери 1-2 подходящие реакции из: {available_keys}. "
-            "Ответь ТОЛЬКО JSON-массивом пар вида [[\"smile\", 0.8]]. Без лишних слов."
+            f"Ты — аниматор лица персонажа Nori. Твоя задача: проанализировать реплику пользователя '{text}' "
+            f"и сопоставить ей 1-2 эмоции или направления взгляда из доступного списка: {available_keys}. "
+            "Учитывай скрытый смысл, иронию, контекст, отрицания ('не злись' -> нейтраль/улыбка) и сложные действия. "
+            "Для каждой выбранной эмоции укажи интенсивность от 0.1 до 1.0. "
+            "Ответь ИСКЛЮЧИТЕЛЬНО валидным JSON-массивом пар вида [[\"название\", 0.8]]. Без пояснений и без markdown."
         )
+
         data = json.dumps({
-            "model": "qwen2.5:0.5b",
+            "model": model_name,
             "prompt": prompt,
             "stream": False,
-            "format": "json"
+            "format": "json",
+            "options": {
+                "temperature": 0.2,
+                "num_predict": 60,
+            }
         }).encode("utf-8")
 
         req = urllib.request.Request(
@@ -319,19 +355,34 @@ class SemanticRouter:
             data=data,
             headers={"Content-Type": "application/json"}
         )
+
         try:
-            with urllib.request.urlopen(req, timeout=0.8) as resp:
+            with urllib.request.urlopen(req, timeout=2.5) as resp:
                 res = json.loads(resp.read().decode("utf-8"))
-                parsed = json.loads(res.get("response", "[]"))
+                raw_response = res.get("response", "[]").strip()
+
+                # Очистка возможных markdown-тегов ```json ... ```
+                if "```" in raw_response:
+                    raw_response = re.sub(r"```(?:json)?", "", raw_response).strip()
+
+                parsed = json.loads(raw_response)
+
+                valid = []
                 if isinstance(parsed, list):
-                    valid = []
                     for item in parsed:
                         if isinstance(item, (list, tuple)) and len(item) == 2:
                             name, weight = item
                             if name in expressions.PRESETS:
                                 valid.append((str(name), float(weight)))
-                    if valid:
-                        return valid
+                elif isinstance(parsed, dict):
+                    # Если модель вернула объект вида {"smile": 0.8}
+                    for name, weight in parsed.items():
+                        if name in expressions.PRESETS and isinstance(weight, (int, float)):
+                            valid.append((str(name), float(weight)))
+
+                if valid:
+                    return valid
         except Exception:
             pass
+
         return None
