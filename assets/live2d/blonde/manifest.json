@@ -1,0 +1,74 @@
+{
+  "name": "blonde",
+  "size": [
+    900,
+    1400
+  ],
+  "states": {
+    "neutral": {
+      "params": {},
+      "file": "neutral.png",
+      "bytes": 304695
+    },
+    "mouth_half": {
+      "params": {
+        "ParamMouthOpenY": 0.5
+      },
+      "file": "mouth_half.png",
+      "bytes": 304808
+    },
+    "mouth_open": {
+      "params": {
+        "ParamMouthOpenY": 1.0
+      },
+      "file": "mouth_open.png",
+      "bytes": 304773
+    },
+    "closed": {
+      "params": {
+        "ParamEyeLOpen": 0.0,
+        "ParamEyeROpen": 0.0
+      },
+      "file": "closed.png",
+      "bytes": 302552
+    },
+    "smile": {
+      "params": {
+        "ParamMouthForm": 1.0,
+        "ParamMouthOpenY": 0.35,
+        "ParamEyeLSmile": 1.0,
+        "ParamEyeRSmile": 1.0
+      },
+      "file": "smile.png",
+      "bytes": 303065
+    },
+    "angry": {
+      "params": {
+        "ParamBrowLY": -0.8,
+        "ParamBrowRY": -0.8,
+        "ParamBrowLAngle": -1.0,
+        "ParamBrowRAngle": -1.0,
+        "ParamMouthForm": -0.7,
+        "ParamMouthOpenY": 0.15
+      },
+      "file": "angry.png",
+      "bytes": 304677
+    },
+    "surprised": {
+      "params": {
+        "ParamMouthOpenY": 0.85,
+        "ParamBrowLY": 0.9,
+        "ParamBrowRY": 0.9
+      },
+      "file": "surprised.png",
+      "bytes": 304771
+    },
+    "blush": {
+      "params": {
+        "ParamCheek": 1.0
+      },
+      "file": "blush.png",
+      "bytes": 304695
+    }
+  }
+}

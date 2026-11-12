@@ -39,3 +39,11 @@ wheels/
 
 # Temporary scratch
 scratch/
+# Локальные артефакты
+_preview/
+models/qwen_cache.json
+models/local_cache.json
+
+# Локальные секреты
+.env
+.env.*

@@ -1,0 +1,30 @@
+<!doctype html><html><head><meta charset="utf-8">
+<style>html,body{margin:0;background:transparent;overflow:hidden}canvas{display:block}</style>
+</head><body>
+<script src="https://cubism.live2d.com/sdk-web/cubismcore/live2dcubismcore.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pixi.js@7.4.2/dist/pixi.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pixi-live2d-display@0.4.0/dist/cubism4.min.js"></script>
+<script>
+const q = new URLSearchParams(location.search);
+const modelPath = q.get('model');
+const W = 500, H = 700;
+const app = new PIXI.Application({ width: W, height: H, backgroundAlpha: 0, antialias: true });
+document.body.appendChild(app.view);
+PIXI.live2d.Live2DModel.from(modelPath).then(model => {
+  app.stage.addChild(model);
+  const b = model.getBounds();
+  const s = Math.min(W / b.width, H / b.height) * 0.96;
+  model.scale.set(s);
+  model.x = -b.x * s + (W - b.width * s) / 2;
+  model.y = -b.y * s + (H - b.height * s) / 2;
+  const core = model.internalModel.coreModel;
+  for (let i = 0; i < 20; i++) model.update(1/60);
+  for (const [k, v] of q.entries()) {
+    if (k.startsWith('p_')) core.setParameterValueById(k.slice(2), parseFloat(v));
+  }
+  // именно model.update, а не core.update: он пересобирает меш из новых параметров
+  model.update(1/60);
+  app.render();
+  document.title = 'READY';
+}).catch(e => { document.title = 'ERR:' + e; });
+</script></body></html>

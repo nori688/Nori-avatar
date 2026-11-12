@@ -11,6 +11,10 @@
     1250,
     1600
   ],
+  "head_origin": [
+    1250,
+    650
+  ],
   "layers": {
     "back_hair": {
       "file": "back_hair.png",
@@ -48,6 +52,158 @@
       "rel_center": [
         0.0,
         1092.5
+      ]
+    },
+    "torso": {
+      "file": "torso.png",
+      "width": 1130,
+      "height": 1537,
+      "bbox": [
+        685,
+        974,
+        1815,
+        2511
+      ],
+      "center": [
+        1250.0,
+        1742.5
+      ],
+      "rel_center": [
+        0.0,
+        1092.5
+      ]
+    },
+    "right_arm_lower": {
+      "file": "right_arm_lower.png",
+      "width": 640,
+      "height": 855,
+      "bbox": [
+        259,
+        1444,
+        899,
+        2299
+      ],
+      "center": [
+        579.0,
+        1871.5
+      ],
+      "rel_center": [
+        -671.0,
+        1221.5
+      ]
+    },
+    "left_arm_lower": {
+      "file": "left_arm_lower.png",
+      "width": 640,
+      "height": 855,
+      "bbox": [
+        1601,
+        1444,
+        2241,
+        2299
+      ],
+      "center": [
+        1921.0,
+        1871.5
+      ],
+      "rel_center": [
+        671.0,
+        1221.5
+      ]
+    },
+    "right_arm_upper": {
+      "file": "right_arm_upper.png",
+      "width": 530,
+      "height": 746,
+      "bbox": [
+        573,
+        1128,
+        1103,
+        1874
+      ],
+      "center": [
+        838.0,
+        1501.0
+      ],
+      "rel_center": [
+        -412.0,
+        851.0
+      ]
+    },
+    "left_arm_upper": {
+      "file": "left_arm_upper.png",
+      "width": 530,
+      "height": 746,
+      "bbox": [
+        1397,
+        1128,
+        1927,
+        1874
+      ],
+      "center": [
+        1662.0,
+        1501.0
+      ],
+      "rel_center": [
+        412.0,
+        851.0
+      ]
+    },
+    "left_leg": {
+      "file": "left_leg.png",
+      "width": 278,
+      "height": 1424,
+      "bbox": [
+        947,
+        2300,
+        1225,
+        3724
+      ],
+      "center": [
+        1086.0,
+        3012.0
+      ],
+      "rel_center": [
+        -164.0,
+        2362.0
+      ]
+    },
+    "right_leg": {
+      "file": "right_leg.png",
+      "width": 278,
+      "height": 1424,
+      "bbox": [
+        1275,
+        2300,
+        1553,
+        3724
+      ],
+      "center": [
+        1414.0,
+        3012.0
+      ],
+      "rel_center": [
+        164.0,
+        2362.0
+      ]
+    },
+    "leg_shadow": {
+      "file": "leg_shadow.png",
+      "width": 854,
+      "height": 222,
+      "bbox": [
+        823,
+        2439,
+        1677,
+        2661
+      ],
+      "center": [
+        1250.0,
+        2550.0
+      ],
+      "rel_center": [
+        0.0,
+        1900.0
       ]
     },
     "face_base": {
@@ -449,9 +605,5 @@
         -39.0
       ]
     }
-  },
-  "head_origin": [
-    1250,
-    650
-  ]
+  }
 }

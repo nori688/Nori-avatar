@@ -26,6 +26,11 @@ NEUTRAL = {
     "mouth_x": 0.0,
     "mouth_open": 0.12,
     "face_angle": 0.0,
+    "head_x": 0.0,
+    "head_y": 0.0,
+    "eye_wide": 0.0,
+    "mouth_smile": 0.0,
+    "mouth_wide": 0.0,
 }
 
 # Каталог эталонных пресетов
@@ -40,6 +45,7 @@ PRESETS: Dict[str, Dict[str, float]] = {
         "right_eye_open": 0.85,
         "mouth_open": 0.50,
         "face_angle": 0.08,
+        "mouth_smile": 0.55,
     },
     "joy": {
         "left_brow_y": -0.50,
@@ -48,6 +54,7 @@ PRESETS: Dict[str, Dict[str, float]] = {
         "right_eye_open": 0.18,
         "mouth_open": 0.85,
         "face_angle": 0.12,
+        "mouth_smile": 0.8,
     },
     "laugh": {
         "left_brow_y": -0.60,
@@ -56,6 +63,7 @@ PRESETS: Dict[str, Dict[str, float]] = {
         "right_eye_open": 0.10,
         "mouth_open": 0.95,
         "face_angle": 0.18,
+        "mouth_smile": 0.9,
     },
 
     # Негативные эмоции
@@ -68,6 +76,7 @@ PRESETS: Dict[str, Dict[str, float]] = {
         "right_eye_open": 0.75,
         "mouth_open": 0.08,
         "face_angle": -0.08,
+        "mouth_smile": -0.55,
     },
     "angry": {
         "left_brow_y": 0.65,
@@ -79,6 +88,7 @@ PRESETS: Dict[str, Dict[str, float]] = {
         "mouth_x": -0.15,
         "mouth_open": 0.22,
         "face_angle": -0.12,
+        "mouth_smile": -0.35,
     },
     "disgust": {
         "left_brow_y": 0.40,
@@ -88,6 +98,7 @@ PRESETS: Dict[str, Dict[str, float]] = {
         "mouth_x": 0.25,
         "mouth_open": 0.18,
         "face_angle": -0.15,
+        "mouth_smile": -0.45,
     },
 
     # Удивление / Шок
@@ -100,6 +111,7 @@ PRESETS: Dict[str, Dict[str, float]] = {
         "right_eye_open": 1.0,
         "mouth_open": 0.85,
         "face_angle": 0.04,
+        "eye_wide": 1.0,
     },
     "shock": {
         "left_brow_y": -0.90,
@@ -108,6 +120,7 @@ PRESETS: Dict[str, Dict[str, float]] = {
         "right_eye_open": 1.0,
         "mouth_open": 1.0,
         "face_angle": 0.0,
+        "eye_wide": 1.0,
     },
 
     # Игровые / Составные реакции
@@ -173,23 +186,27 @@ PRESETS: Dict[str, Dict[str, float]] = {
         "left_eye_x": -0.85,
         "right_eye_x": -0.85,
         "face_angle": -0.25,
+        "head_x": -0.35,
     },
     "look_right": {
         "left_eye_x": 0.85,
         "right_eye_x": 0.85,
         "face_angle": 0.25,
+        "head_x": 0.35,
     },
     "look_up": {
         "left_eye_y": -0.85,
         "right_eye_y": -0.85,
         "left_brow_y": -0.20,
         "right_brow_y": -0.20,
+        "head_y": -0.30,
     },
     "look_down": {
         "left_eye_y": 0.85,
         "right_eye_y": 0.85,
         "left_brow_y": 0.15,
         "right_brow_y": 0.15,
+        "head_y": 0.45,
     },
 
     # Моргание / Глаза
@@ -205,34 +222,39 @@ PRESETS: Dict[str, Dict[str, float]] = {
     },
 }
 
-ZERO_TO_ONE_PARAMS = {"left_eye_open", "right_eye_open", "mouth_open"}
+ZERO_TO_ONE_PARAMS = {"left_eye_open", "right_eye_open", "mouth_open", "eye_wide"}
 
 
 def clamp(val: float, minimum: float, maximum: float) -> float:
     return max(minimum, min(maximum, val))
 
 
-def blend_presets(active_presets: List[Tuple[str, float]], base_name: str = "neutral") -> Dict[str, float]:
-    """Смешивает несколько пресетов лица по их весам (от 0.0 до 1.0).
+def blend_presets(active_presets, base_name: str = "neutral") -> Dict[str, float]:
+    """Смешивает пресеты и прямые значения параметров в одну позу.
 
-    Пример:
-        blend_presets([("smile", 0.8), ("look_left", 0.6)])
+    Элемент ``("smile", 0.8)`` — пресет с весом.
+    Элемент ``("head_y", 0.75)`` — прямое значение параметра; используется
+    в шагах таймлайна, когда нужно точное положение, а не эмоция.
     """
-    result = PRESETS.get(base_name, NEUTRAL).copy()
+    result = dict(PRESETS.get(base_name, NEUTRAL))
+    overrides = []
 
-    for preset_name, weight in active_presets:
-        if preset_name not in PRESETS:
-            continue
-        w = clamp(weight, 0.0, 1.5)
-        preset = PRESETS[preset_name]
+    for name, value in active_presets:
+        if name in PRESETS:
+            weight = clamp(float(value), 0.0, 1.5)
+            preset = PRESETS[name]
+            for param, target_val in preset.items():
+                if param not in NEUTRAL:
+                    continue
+                result[param] = result.get(param, NEUTRAL[param]) + (
+                    target_val - NEUTRAL[param]
+                ) * weight
+        elif name in NEUTRAL:
+            overrides.append((name, float(value)))
 
-        for param, target_val in preset.items():
-            if param not in NEUTRAL:
-                continue
-            delta = target_val - NEUTRAL[param]
-            result[param] += delta * w
+    for param, value in overrides:
+        result[param] = value
 
-    # Финальный клампинг диапазонов
     for param in result:
         if param in ZERO_TO_ONE_PARAMS:
             result[param] = clamp(result[param], 0.0, 1.0)

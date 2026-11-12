@@ -38,6 +38,8 @@ def main():
     # Центр головы аватара как референсная точка
     # По оси X симметрия строго по 1250, по оси Y центр лица около 650
     HEAD_ORIGIN = (1250, 650)
+    HEAD_CENTER = HEAD_ORIGIN
+    BODY_CENTER = (1250, 1600)
     extracted = {}
 
     def save_part(key, layer_or_img, bbox):
@@ -73,8 +75,20 @@ def main():
     # 2. Тело и одежда (верхний бюст)
     body_group = find_layer(psd, "服 身体")
     save_part("body", body_group, body_group.bbox)
+    save_part("torso", find_layer(psd, "服 身体", "体"), find_layer(psd, "服 身体", "体").bbox)
+    save_part("right_arm_lower", find_layer(psd, "服 身体", "腕下 右"), find_layer(psd, "服 身体", "腕下 右").bbox)
+    save_part("left_arm_lower", find_layer(psd, "服 身体", "腕下 左"), find_layer(psd, "服 身体", "腕下 左").bbox)
+    save_part("right_arm_upper", find_layer(psd, "服 身体", "腕上 右"), find_layer(psd, "服 身体", "腕上 右").bbox)
+    save_part("left_arm_upper", find_layer(psd, "服 身体", "腕上 左"), find_layer(psd, "服 身体", "腕上 左").bbox)
 
-    # 3. Шея и база лица
+    # 3. Ноги и отдельные детали одежды сохраняем отдельно, чтобы не
+    # превращать полного персонажа в один неподвижный спрайт.
+    save_part("left_leg", find_layer(psd, "足", "脚", "脚 左"), find_layer(psd, "足", "脚", "脚 左").bbox)
+    save_part("right_leg", find_layer(psd, "足", "脚", "脚 右"), find_layer(psd, "足", "脚", "脚 右").bbox)
+    leg_shadow = find_layer(psd, "足", "脚 影")
+    save_part("leg_shadow", leg_shadow, leg_shadow.bbox)
+
+    # 4. Шея и база лица
     neck_group = find_layer(psd, "輪郭")
     face_base = find_layer(psd, "輪郭", "顔")
     save_part("face_base", face_base, face_base.bbox)
@@ -150,6 +164,7 @@ def main():
         "canvas_size": list(psd.size),
         "head_center": list(HEAD_CENTER),
         "body_center": list(BODY_CENTER),
+        "head_origin": list(HEAD_ORIGIN),
         "layers": extracted,
     }
 

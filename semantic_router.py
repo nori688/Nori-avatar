@@ -1,8 +1,9 @@
 """Гибридный семантический роутер (Semantic Vector Matcher + Negation/Compound Analyzer + LLM Client).
 
 Обеспечивает мгновенный (<1 мс) семантический поиск по расширенной базе русскоязычных фраз,
-разбирает отрицания («не злись»), составные команды («улыбнись и посмотри влево»)
-и поддерживает динамический кэш с возможностью подключения локальной LLM.
+разбирает отрицания («не злись»), составные команды («улыбнись и посмотри влево»),
+поддерживает динамические последовательности анимации (таймлайны)
+и кэш с возможностью подключения локальной LLM.
 """
 
 import json
@@ -15,9 +16,10 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
 import expressions
+from timeline import SEQUENCES, list_sequences
 
 PROJECT_DIR = Path(__file__).resolve().parent
-CACHE_FILE = PROJECT_DIR / "models" / "semantic_cache.json"
+CACHE_FILE = PROJECT_DIR / "models" / "local_cache.json"
 
 # База образцов фраз, привязанных к пресетам и их интенсивности
 CORPUS: List[Tuple[str, List[Tuple[str, float]]]] = [
@@ -167,6 +169,90 @@ CORPUS: List[Tuple[str, List[Tuple[str, float]]]] = [
     ("вернись в центр", [("neutral", 1.00)]),
 ]
 
+# Маппинг фраз на имена последовательностей (таймлайнов)
+SEQUENCE_CORPUS: List[Tuple[str, List[str]]] = [
+    # Закатывание глаз
+    ("закати глаза", ["eye_roll"]),
+    ("покрути глазами", ["eye_roll"]),
+    ("закатывай глаза", ["eye_roll"]),
+    ("глаза в потолок", ["eye_roll"]),
+    ("eye roll", ["eye_roll"]),
+
+    # Кивок
+    ("кивни", ["nod"]),
+    ("кивок", ["nod"]),
+    ("кивай", ["nod"]),
+    ("да да", ["nod"]),
+    ("согласен", ["nod"]),
+
+    # Медленный кивок
+    ("кивни медленно", ["slow_nod"]),
+    ("медленный кивок", ["slow_nod"]),
+    ("медленно кивни", ["slow_nod"]),
+
+    # Покачивание головой
+    ("покачай головой", ["head_shake"]),
+    ("покрути головой", ["head_shake"]),
+    ("нет нет", ["head_shake"]),
+    ("не согласен", ["head_shake"]),
+    ("качай головой", ["head_shake"]),
+
+    # Двойное моргание
+    ("моргни дважды", ["double_blink"]),
+    ("двойное моргание", ["double_blink"]),
+    ("моргни два раза", ["double_blink"]),
+
+    # Медленное подмигивание
+    ("подмигни медленно", ["slow_wink"]),
+    ("медленное подмигивание", ["slow_wink"]),
+
+    # Вздох
+    ("вздохни", ["sigh"]),
+    ("тяжелый вздох", ["sigh"]),
+    ("вздохни глубоко", ["sigh"]),
+    ("эх", ["sigh"]),
+
+    # Оглядывание
+    ("оглянись", ["look_around"]),
+    ("оглядись", ["look_around"]),
+    ("осмотрись", ["look_around"]),
+    ("посмотри по сторонам", ["look_around"]),
+
+    # Злобный прищур
+    ("прищурься злобно", ["angry_squint"]),
+    ("злобный прищур", ["angry_squint"]),
+    ("прищурь глаза", ["angry_squint"]),
+
+    # Смущение
+    ("смутись", ["embarrassed"]),
+    ("засмущайся", ["embarrassed"]),
+    ("стесняйся", ["embarrassed"]),
+    ("мне неловко", ["embarrassed"]),
+
+    # Задумчивость
+    ("задумайся", ["thinking"]),
+    ("подумай", ["thinking"]),
+    ("хмм", ["thinking"]),
+    ("думаю", ["thinking"]),
+    ("размышляю", ["thinking"]),
+
+    # Радостный кивок
+    ("радостно кивни", ["happy_nod"]),
+    ("привет", ["happy_nod"]),
+    ("приветик", ["happy_nod"]),
+    ("здравствуй", ["happy_nod"]),
+
+    # Составные последовательности
+    ("закати глаза и кивни", ["eye_roll", "nod"]),
+    ("закати глаза и кивни медленно", ["eye_roll", "slow_nod"]),
+    ("кивни и подмигни", ["nod", "slow_wink"]),
+    ("покачай головой и вздохни", ["head_shake", "sigh"]),
+    ("вздохни и покачай головой", ["sigh", "head_shake"]),
+    ("моргни и улыбнись", ["double_blink"]),
+    ("подумай и кивни", ["thinking", "nod"]),
+    ("оглянись и кивни", ["look_around", "nod"]),
+]
+
 # Правила для отрицаний: если есть «не» / «хватит» перед эмоцией
 NEGATION_RULES = {
     "angry": [("neutral", 1.0), ("smile", 0.35)],  # не злись -> спокойно + легкая улыбка
@@ -181,203 +267,199 @@ NEGATION_RULES = {
 
 
 class SemanticRouter:
-    """Семантический векторный маршрутизатор с разбором отрицаний и кэшированием."""
+    """Быстрый локальный разбор реплики — резерв, когда Qwen недоступна.
+
+    Никаких сетевых вызовов: разбор занимает доли миллисекунды и никогда
+    не подвешивает игровой цикл. Основное решение принимает Qwen-клиент,
+    а этот класс используется как запасной вариант и источник кэша.
+    """
+
+    MIN_SCORE = 0.42
+    SEQ_MIN_SCORE = 0.62
+    CACHE_SCORE = 0.85
 
     def __init__(self):
         self.phrases = [p[0] for p in CORPUS]
         self.targets = [p[1] for p in CORPUS]
 
-        # Символьные и пословные n-граммы (char_wb 2-4) дают устойчивость к окончаниям и опечаткам
+        # Символьные n-граммы (char_wb 2-4) устойчивы к окончаниям и опечаткам
         self.vectorizer = TfidfVectorizer(
-            analyzer="char_wb",
-            ngram_range=(2, 4),
-            lowercase=True,
+            analyzer="char_wb", ngram_range=(2, 4), lowercase=True
         )
         self.tfidf_matrix = self.vectorizer.fit_transform(self.phrases)
 
-        # Загрузка постоянного семантического кэша
+        # Отдельный TF-IDF для фраз-последовательностей (таймлайнов)
+        self.seq_phrases = [p[0] for p in SEQUENCE_CORPUS]
+        self.seq_targets = [p[1] for p in SEQUENCE_CORPUS]
+        self.seq_vectorizer = TfidfVectorizer(
+            analyzer="char_wb", ngram_range=(2, 4), lowercase=True
+        )
+        self.seq_tfidf_matrix = self.seq_vectorizer.fit_transform(self.seq_phrases)
+
         self.cache: Dict[str, List[Tuple[str, float]]] = {}
         self._load_cache()
 
+    # ------------------------------------------------------------------
+    # Кэш
+    # ------------------------------------------------------------------
     def _load_cache(self):
-        if CACHE_FILE.exists():
-            try:
-                with open(CACHE_FILE, "r", encoding="utf-8") as f:
-                    raw = json.load(f)
-                    self.cache = {k: [tuple(x) for x in v] for k, v in raw.items()}
-            except Exception:
-                self.cache = {}
+        if not CACHE_FILE.exists():
+            return
+        try:
+            raw = json.loads(CACHE_FILE.read_text(encoding="utf-8"))
+        except Exception:
+            self.cache = {}
+            return
+
+        cache = {}
+        for key, value in raw.items():
+            if not isinstance(value, list):
+                continue
+            presets = []
+            for item in value:
+                if not isinstance(item, (list, tuple)) or len(item) != 2:
+                    continue
+                name, weight = item
+                if name in expressions.PRESETS:
+                    try:
+                        presets.append((str(name), float(weight)))
+                    except (TypeError, ValueError):
+                        continue
+            if presets:
+                cache[str(key).strip().lower()] = presets
+        self.cache = cache
 
     def _save_cache(self):
         try:
             CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
-            with open(CACHE_FILE, "w", encoding="utf-8") as f:
-                json.dump(self.cache, f, ensure_ascii=False, indent=2)
+            payload = {k: [[n, round(w, 3)] for n, w in v] for k, v in self.cache.items()}
+            CACHE_FILE.write_text(
+                json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
+            )
         except Exception:
             pass
 
-    def _match_single_clause(self, clause: str) -> Tuple[List[Tuple[str, float]], float]:
-        """Ищет совпадение для одного простого предложения/клаузы."""
+    # ------------------------------------------------------------------
+    # Матчинг
+    # ------------------------------------------------------------------
+    def _best_static(self, clause: str) -> Tuple[List[Tuple[str, float]], float]:
+        """Ищет лучший статический пресет для одной клаузы."""
         clause = clause.strip().lower()
         if not clause:
             return [("neutral", 1.0)], 1.0
 
-        # 1. Проверка прямого кэша
         if clause in self.cache:
-            return self.cache[clause], 1.0
+            return list(self.cache[clause]), 1.0
 
-        # 2. Проверка отрицания («не злись», «хватит грустить», «перестань улыбаться»)
         is_negated = bool(re.search(r"\b(не|хватит|перестань|прекрати)\b", clause))
-        cleaned = re.sub(r"\b(не|хватит|перестань|прекрати|пожалуйста|давай|ты)\b", "", clause).strip()
+        cleaned = re.sub(
+            r"\b(не|хватит|перестань|прекрати|пожалуйста|давай|ты)\b", "", clause
+        ).strip()
         search_target = cleaned if (is_negated and cleaned) else clause
 
-        # 3. Векторный поиск по косинусному сходству
-        vec = self.vectorizer.transform([search_target])
-        sims = cosine_similarity(vec, self.tfidf_matrix)[0]
-        best_idx = int(np.argmax(sims))
-        score = float(sims[best_idx])
+        vector = self.vectorizer.transform([search_target])
+        similarities = cosine_similarity(vector, self.tfidf_matrix)[0]
+        best_idx = int(np.argmax(similarities))
+        score = float(similarities[best_idx])
+        presets = [tuple(x) for x in self.targets[best_idx]]
 
-        matched_presets = self.targets[best_idx]
-
-        # Если было отрицание, преобразуем пресет согласно правилам анти-эмоций
         if is_negated:
-            inverted = []
-            for name, _ in matched_presets:
+            inverted: List[Tuple[str, float]] = []
+            for name, _ in presets:
                 if name in NEGATION_RULES:
                     inverted.extend(NEGATION_RULES[name])
                 else:
                     inverted.append(("neutral", 1.0))
-            matched_presets = inverted or [("neutral", 1.0)]
+            presets = inverted or [("neutral", 1.0)]
 
-        return matched_presets, score
+        return presets, score
 
-    def route(self, text: str) -> Tuple[Dict[str, float], str, float]:
-        """Разбирает составной текст, находит пресеты и возвращает итоговые параметры."""
-        norm_text = text.strip().lower()
+    def _match_sequence(self, clause: str) -> Tuple[Optional[List[str]], float]:
+        """Ищет подходящую последовательность анимации по одной клаузе."""
+        clause = clause.strip().lower()
+        if not clause:
+            return None, 0.0
+        vector = self.seq_vectorizer.transform([clause])
+        similarities = cosine_similarity(vector, self.seq_tfidf_matrix)[0]
+        best_idx = int(np.argmax(similarities))
+        return self.seq_targets[best_idx], float(similarities[best_idx])
+
+    @classmethod
+    def _prefer_sequence(cls, seq_score: float, static_score: float) -> bool:
+        """Анимация побеждает, только если она заметно точнее статического пресета."""
+        if seq_score >= 0.999:
+            return True
+        return seq_score >= cls.SEQ_MIN_SCORE and seq_score > static_score + 0.03
+
+    # ------------------------------------------------------------------
+    # Публичный разбор
+    # ------------------------------------------------------------------
+    def route(self, text: str):
+        """Разбирает фразу целиком.
+
+        Возвращает ``(параметры | None, описание, уверенность, последовательности | None)``.
+        ``None`` в параметрах означает «позу не меняем» (чистая анимация).
+        """
+        norm_text = " ".join(text.strip().lower().split())
         if not norm_text:
-            return expressions.NEUTRAL.copy(), "Пустой ввод", 1.0
+            return None, "Пустой ввод", 1.0, None
 
-        # Проверка кэша для всей фразы целиком
         if norm_text in self.cache:
-            blended = expressions.blend_presets(self.cache[norm_text])
-            return blended, f"Кэш: {self.cache[norm_text]}", 1.0
+            presets = list(self.cache[norm_text])
+            return (
+                expressions.blend_presets(presets),
+                "Кэш: " + ", ".join(f"{p}:{w:.2f}" for p, w in presets),
+                1.0,
+                None,
+            )
 
-        # Разбор составных фраз (разделители: «и», «а», «затем», «потом», запятая)
         parts = re.split(r"[,;]|\b(и|а|затем|потом|после чего)\b", norm_text)
-        clauses = [p.strip() for p in parts if p and p.strip() not in ("и", "а", "затем", "потом", "после чего")]
+        clauses = [
+            p.strip()
+            for p in parts
+            if p and p.strip() and p.strip() not in ("и", "а", "затем", "потом", "после чего")
+        ]
+        if not clauses:
+            return None, "Пустой ввод", 1.0, None
 
-        combined_presets: List[Tuple[str, float]] = []
+        reactions: List[Tuple[str, float]] = []
+        sequences: List[str] = []
         scores: List[float] = []
 
-        for c in clauses:
-            presets, score = self._match_single_clause(c)
-            combined_presets.extend(presets)
-            scores.append(score)
+        for clause in clauses:
+            statics, static_score = self._best_static(clause)
+            seq_names, seq_score = self._match_sequence(clause)
 
-        avg_score = float(np.mean(scores)) if scores else 0.0
+            if seq_names and self._prefer_sequence(seq_score, static_score):
+                sequences.extend(seq_names)
+                scores.append(seq_score)
+            else:
+                reactions.extend(statics)
+                scores.append(static_score)
 
-        # Если уверенность низкая, пробуем опросить локальную LLM (Ollama), если она запущена
-        if avg_score < 0.45:
-            llm_presets = self._try_llm_query(norm_text)
-            if llm_presets:
-                combined_presets = llm_presets
-                avg_score = 0.99
-                self.cache[norm_text] = combined_presets
-                self._save_cache()
-                blended_params = expressions.blend_presets(combined_presets)
-                model_name = getattr(self, "_active_model", "Qwen")
-                return blended_params, f"LLM ({model_name}): {combined_presets}", 0.99
+        score = float(np.mean(scores)) if scores else 0.0
+        params = expressions.blend_presets(reactions) if reactions else None
 
-        # Если уверенность достаточна, сохраняем в кэш
-        if avg_score >= 0.40:
-            self.cache[norm_text] = combined_presets
+        # Кэшируем только цельные, уверенные и однозначные разборы
+        if (
+            params is not None
+            and not sequences
+            and len(clauses) == 1
+            and score >= self.CACHE_SCORE
+            and norm_text not in self.cache
+        ):
+            self.cache[norm_text] = [(n, w) for n, w in reactions]
             self._save_cache()
 
-        blended_params = expressions.blend_presets(combined_presets)
-        description = f"Семантика ({avg_score:.2f}): " + ", ".join(f"{p}:{w:.2f}" for p, w in combined_presets)
+        if sequences:
+            desc = "Анимация: " + ", ".join(sequences)
+            if reactions:
+                desc += " + " + ", ".join(f"{p}:{w:.2f}" for p, w in reactions)
+        elif reactions:
+            desc = "Семантика ({:.2f}): {}".format(
+                score, ", ".join(f"{p}:{w:.2f}" for p, w in reactions)
+            )
+        else:
+            desc = "Нейтрально"
 
-        return blended_params, description, avg_score
-
-    def _detect_ollama_model(self) -> str:
-        """Определяет лучшую доступную модель Qwen в Ollama."""
-        if hasattr(self, "_active_model") and self._active_model:
-            return self._active_model
-
-        try:
-            import urllib.request
-            req = urllib.request.Request("http://127.0.0.1:11434/api/tags")
-            with urllib.request.urlopen(req, timeout=0.6) as resp:
-                data = json.loads(resp.read().decode("utf-8"))
-                models = [m.get("name", "") for m in data.get("models", [])]
-                for priority in ("qwen2.5:7b", "qwen2.5:3b", "qwen2.5:1.5b", "qwen2.5:0.5b", "qwen2.5", "llama3"):
-                    for m in models:
-                        if priority in m:
-                            self._active_model = m
-                            return m
-                if models:
-                    self._active_model = models[0]
-                    return models[0]
-        except Exception:
-            pass
-
-        self._active_model = "qwen2.5:3b"
-        return self._active_model
-
-    def _try_llm_query(self, text: str) -> Optional[List[Tuple[str, float]]]:
-        """Опрашивает локальную LLM (Ollama) с динамическим определением модели."""
-        import urllib.request
-        import urllib.error
-
-        model_name = self._detect_ollama_model()
-        available_keys = [k for k in expressions.PRESETS.keys() if k != "neutral"]
-
-        prompt = (
-            f"Проанализируй фразу: '{text}'. Выбери 1-2 подходящие реакции персонажа из списка: {available_keys} с силой от 0.1 до 1.0. "
-            "Ответь строго JSON-объектом вида: {\"название_реакции\": число}. Пример: {\"smug\": 0.8, \"look_left\": 0.5}."
-        )
-
-        data = json.dumps({
-            "model": model_name,
-            "prompt": prompt,
-            "stream": False,
-            "format": "json",
-            "options": {
-                "temperature": 0.1,
-                "num_predict": 45,
-            }
-        }).encode("utf-8")
-
-        req = urllib.request.Request(
-            "http://127.0.0.1:11434/api/generate",
-            data=data,
-            headers={"Content-Type": "application/json"}
-        )
-
-        try:
-            with urllib.request.urlopen(req, timeout=3.5) as resp:
-                res = json.loads(resp.read().decode("utf-8"))
-                raw_response = res.get("response", "{}").strip()
-
-                if "```" in raw_response:
-                    raw_response = re.sub(r"```(?:json)?", "", raw_response).strip()
-
-                parsed = json.loads(raw_response)
-                valid = []
-
-                if isinstance(parsed, dict):
-                    for name, weight in parsed.items():
-                        if name in expressions.PRESETS and isinstance(weight, (int, float)):
-                            valid.append((str(name), float(weight)))
-                elif isinstance(parsed, list):
-                    for item in parsed:
-                        if isinstance(item, (list, tuple)) and len(item) == 2:
-                            name, weight = item
-                            if name in expressions.PRESETS:
-                                valid.append((str(name), float(weight)))
-
-                if valid:
-                    return valid
-        except Exception:
-            pass
-
-        return None
+        return params, desc, score, sequences or None
